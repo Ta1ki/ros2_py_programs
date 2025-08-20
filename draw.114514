@@ -1,0 +1,59 @@
+import rclpy
+from rclpy.node import Node
+from turtlesim.srv import Spawn, TeleportAbsolute
+from turtlesim.msg import Pose
+from geometry_msgs.msg import Twist
+import time
+
+class NumberDrawer(Node):
+    def __init__(self):
+        super().__init__('number_drawer')
+
+        self.spawn_client = self.create_client(Spawn, '/spawn')
+        self.teleport_clients = []
+        self.cmd_vel_publishers = []
+
+        # カメを6匹スポーン
+        for i in range(6):
+            self.spawn_client.wait_for_service()
+            request = Spawn.Request()
+            request.x = 1.0 + i * 1.0
+            request.y = 5.0
+            request.name = f'turtle{i}'
+            self.spawn_client.call_async(request)
+
+        # 数秒待ってから初期化
+        time.sleep(2.0)
+        for i in range(6):
+            self.teleport_clients.append(
+                self.create_client(TeleportAbsolute, f'/turtle{i}/teleport_absolute')
+            )
+            self.cmd_vel_publishers.append(
+                self.create_publisher(Twist, f'/turtle{i}/cmd_vel', 10)
+            )
+
+        self.draw_numbers()
+
+    def draw_numbers(self):
+        # ここに数字「114514」を描くための動きのロジックを書く
+        # 例：各カメが数字の線を描くように、Twistメッセージを送る
+        for i in range(6):
+            twist = Twist()
+            twist.linear.x = 2.0
+            twist.angular.z = 1.0
+            self.cmd_vel_publishers[i].publish(twist)
+            time.sleep(1.0)
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
+            self.cmd_vel_publishers[i].publish(twist)
+
+        self.get_logger().info('数字描画完了！')
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = NumberDrawer()
+    rclpy.spin(node)
+    rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
